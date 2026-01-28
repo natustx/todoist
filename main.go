@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"encoding/csv"
 	"encoding/json"
@@ -17,6 +18,57 @@ import (
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
+
+// reorderArgs moves flags before positional arguments so that both
+// `todoist modify -L "label" <id>` and `todoist modify <id> -L "label"`
+// work the same way. This is needed because urfave/cli v2 requires
+// flags before arguments (POSIX-compliant behavior).
+func reorderArgs(args []string) []string {
+	if len(args) < 3 {
+		return args
+	}
+	
+	// Keep program name and command
+	result := []string{args[0]}
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") {
+		result = append(result, args[1]) // command name
+	}
+	
+	// Separate flags and positional args
+	var flags []string
+	var positional []string
+	
+	startIdx := len(result)
+	for i := startIdx; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+			// Check if this flag takes a value (next arg doesn't start with -)
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !strings.Contains(arg, "=") {
+				// This might be a flag value, check if it's not a task ID (numeric or alphanumeric ID)
+				nextArg := args[i+1]
+				// If the flag is known to take values, grab the next arg
+				if strings.HasSuffix(arg, "c") || strings.HasSuffix(arg, "content") ||
+					strings.HasSuffix(arg, "p") || strings.HasSuffix(arg, "priority") ||
+					strings.HasSuffix(arg, "L") || strings.HasSuffix(arg, "label-names") ||
+					strings.HasSuffix(arg, "d") || strings.HasSuffix(arg, "date") ||
+					strings.HasSuffix(arg, "N") || strings.HasSuffix(arg, "project-name") ||
+					strings.HasSuffix(arg, "P") || strings.HasSuffix(arg, "project-id") ||
+					strings.HasSuffix(arg, "f") || strings.HasSuffix(arg, "filter") {
+					flags = append(flags, nextArg)
+					i++ // skip the value
+				}
+			}
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	
+	// Reconstruct: program + command + flags + positional
+	result = append(result, flags...)
+	result = append(result, positional...)
+	return result
+}
 
 var (
 	version             string
@@ -350,7 +402,9 @@ func main() {
 			ArgsUsage: "<Item content>",
 		},
 	}
-	if err := app.Run(os.Args); err != nil {
+	// Reorder args so flags can come after positional arguments
+	args := reorderArgs(os.Args)
+	if err := app.Run(args); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
