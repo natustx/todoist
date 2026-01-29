@@ -54,6 +54,8 @@ func reorderArgs(args []string) []string {
 					strings.HasSuffix(arg, "d") || strings.HasSuffix(arg, "date") ||
 					strings.HasSuffix(arg, "N") || strings.HasSuffix(arg, "project-name") ||
 					strings.HasSuffix(arg, "P") || strings.HasSuffix(arg, "project-id") ||
+					strings.HasSuffix(arg, "S") || strings.HasSuffix(arg, "section-id") ||
+					strings.HasSuffix(arg, "section-name") ||
 					strings.HasSuffix(arg, "f") || strings.HasSuffix(arg, "filter") {
 					flags = append(flags, nextArg)
 					i++ // skip the value
@@ -114,7 +116,7 @@ func main() {
 		Aliases: []string{"L"},
 		Usage:   "label names (separated by ,)",
 	}
-	projectIDFlag := cli.IntFlag{
+	projectIDFlag := cli.StringFlag{
 		Name:    "project-id",
 		Aliases: []string{"P"},
 		Usage:   "project id",
@@ -123,6 +125,15 @@ func main() {
 		Name:    "project-name",
 		Aliases: []string{"N"},
 		Usage:   "project name",
+	}
+	sectionIDFlag := cli.StringFlag{
+		Name:    "section-id",
+		Aliases: []string{"S"},
+		Usage:   "section id",
+	}
+	sectionNameFlag := cli.StringFlag{
+		Name:  "section-name",
+		Usage: "section name (requires project context)",
 	}
 	dateFlag := cli.StringFlag{
 		Name:    "date",
@@ -334,6 +345,8 @@ func main() {
 				&labelNamesFlag,
 				&projectIDFlag,
 				&projectNameFlag,
+				&sectionIDFlag,
+				&sectionNameFlag,
 				&dateFlag,
 			},
 			ArgsUsage: "<Item ID>",

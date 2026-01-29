@@ -32,11 +32,25 @@ func (a Projects) Less(i, j int) bool { return a[i].ID < a[j].ID }
 func (a Projects) At(i int) IDCarrier { return a[i] }
 
 func (a Projects) GetIDByName(name string) string {
+	// Normalize input: trim whitespace and optional # prefix
+	name = strings.TrimSpace(name)
+	name = strings.TrimPrefix(name, "#")
+	name = strings.TrimSpace(name)
+
+	// First try exact match
 	for _, pjt := range a {
 		if pjt.Name == name {
 			return pjt.GetID()
 		}
 	}
+
+	// Then try case-insensitive match
+	for _, pjt := range a {
+		if strings.EqualFold(pjt.Name, name) {
+			return pjt.GetID()
+		}
+	}
+
 	return ""
 }
 

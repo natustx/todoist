@@ -252,3 +252,18 @@ func (c *Client) MoveItem(ctx context.Context, item *Item, projectId string) err
 	}
 	return c.ExecCommands(ctx, commands)
 }
+
+func (item *Item) MoveSectionParam(sectionId string) interface{} {
+	param := map[string]interface{}{
+		"id":         item.ID,
+		"section_id": sectionId,
+	}
+	return param
+}
+
+func (c *Client) MoveItemToSection(ctx context.Context, item *Item, sectionId string) error {
+	commands := Commands{
+		NewCommand("item_move", item.MoveSectionParam(sectionId)),
+	}
+	return c.ExecCommands(ctx, commands)
+}

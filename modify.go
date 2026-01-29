@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
-	"github.com/sachaos/todoist/lib"
+	todoist "github.com/sachaos/todoist/lib"
 	"github.com/urfave/cli/v2"
 )
 
@@ -47,21 +48,47 @@ func Modify(c *cli.Context) error {
 		item.Due = &todoist.Due{String: c.String("date")}
 	}
 
+	// Resolve project ID
 	projectID := c.String("project-id")
-	if projectID == "" {
+	if projectID == "" && c.IsSet("project-name") {
 		projectID = client.Store.Projects.GetIDByName(c.String("project-name"))
+		if projectID == "" {
+			return fmt.Errorf("project not found: %s", c.String("project-name"))
+		}
 	}
 
-	if !c.Args().Present() {
-		return CommandFailed
+	// Resolve section ID
+	sectionID := c.String("section-id")
+	if sectionID == "" && c.IsSet("section-name") {
+		sectionName := c.String("section-name")
+		// Find section by name within the target project (or current project if not moving)
+		targetProjectID := projectID
+		if targetProjectID == "" {
+			targetProjectID = item.ProjectID
+		}
+		sectionID = client.Store.Sections.GetIDByNameAndProject(sectionName, targetProjectID)
+		if sectionID == "" {
+			return fmt.Errorf("section not found: %s", sectionName)
+		}
 	}
 
+	// Update item properties
 	if err := client.UpdateItem(context.Background(), *item); err != nil {
 		return err
 	}
 
-	if err := client.MoveItem(context.Background(), item, projectID); err != nil {
-		return err
+	// Move to project if specified (must be done before section move)
+	if projectID != "" {
+		if err := client.MoveItem(context.Background(), item, projectID); err != nil {
+			return err
+		}
+	}
+
+	// Move to section if specified
+	if sectionID != "" {
+		if err := client.MoveItemToSection(context.Background(), item, sectionID); err != nil {
+			return err
+		}
 	}
 
 	return Sync(c)
